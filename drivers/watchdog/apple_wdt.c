@@ -57,15 +57,15 @@ static int apple_wdt_expire_now(struct udevice *dev, ulong flags)
 {
 	int ret;
 
-	ret = apple_wdt_start(dev, 0, flags);
+	ret = apple_wdt_start(dev, 1, flags);
 	if (ret)
 		return ret;
 
 	/*
-	 * It can take up to 25ms until the SoC actually resets, so
-	 * wait 50ms just to be sure.
+	 * It can take up to 125ms until the SoC actually resets, so
+	 * wait 150ms just to be sure.
 	 */
-	mdelay(50);
+	mdelay(150);
 
 	return 0;
 }
