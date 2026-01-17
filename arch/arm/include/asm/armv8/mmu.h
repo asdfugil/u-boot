@@ -16,7 +16,14 @@
 
 /* PAGE_SHIFT determines the page size */
 #undef  PAGE_SIZE
+#if defined(CONFIG_ARM64_4K_PAGES)
 #define PAGE_SHIFT		12
+#elif defined(CONFIG_ARM64_16K_PAGES)
+#define PAGE_SHIFT		14
+#elif defined(CONFIG_ARM64_64K_PAGES)
+#define PAGE_SHIFT		16
+#endif
+
 #define PAGE_SIZE		(1 << PAGE_SHIFT)
 #define PAGE_MASK		(~(PAGE_SIZE - 1))
 

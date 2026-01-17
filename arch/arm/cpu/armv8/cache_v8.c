@@ -100,8 +100,15 @@ u64 get_tcr(u64 *pips, u64 *pva_bits)
 	}
 
 	/* PTWs cacheable, inner/outer WBWA and inner shareable */
-	tcr |= TCR_TG0_4K | TCR_SHARED_INNER | TCR_ORGN_WBWA | TCR_IRGN_WBWA;
+	tcr |= TCR_SHARED_INNER | TCR_ORGN_WBWA | TCR_IRGN_WBWA;
 	tcr |= TCR_T0SZ(va_bits);
+
+	if (IS_ENABLED(CONFIG_ARM64_4K_PAGES))
+		tcr |= TCR_TG0_4K;
+	else if (IS_ENABLED(CONFIG_ARM64_16K_PAGES))
+		tcr |= TCR_TG0_16K;
+	else if (IS_ENABLED(CONFIG_ARM64_64K_PAGES))
+		tcr |= TCR_TG0_64K;
 
 	if (pips)
 		*pips = ips;
@@ -111,7 +118,7 @@ u64 get_tcr(u64 *pips, u64 *pva_bits)
 	return tcr;
 }
 
-#define MAX_PTE_ENTRIES 512
+#define MAX_PTE_ENTRIES (PAGE_SIZE / sizeof(u64))
 
 static int pte_type(u64 *pte)
 {
@@ -121,8 +128,23 @@ static int pte_type(u64 *pte)
 /* Returns the LSB number for a PTE on level <level> */
 static int level2shift(int level)
 {
-	/* Page is 12 bits wide, every level translates 9 bits */
-	return (12 + 9 * (3 - level));
+	/* Every level translates PAGE_SHIFT - 3 bits */
+	return (PAGE_SHIFT + (PAGE_SHIFT - 3) * (3 - level));
+}
+
+/* Returns the start level for current page size and va bits */
+static int _start_level(void)
+{
+	u64 va_bits;
+	get_tcr(NULL, &va_bits);
+
+	if (va_bits <= PAGE_SHIFT + (PAGE_SHIFT - 3) * 2)
+		return 2;
+
+	if (va_bits <= PAGE_SHIFT + (PAGE_SHIFT - 3) * 3)
+		return 1;
+
+	return 0;
 }
 
 static u64 *find_pte(u64 addr, int level)
@@ -136,8 +158,8 @@ static u64 *find_pte(u64 addr, int level)
 	debug("addr=%llx level=%d\n", addr, level);
 
 	get_tcr(NULL, &va_bits);
-	if (va_bits < 39)
-		start_level = 1;
+
+	start_level = _start_level();
 
 	if (level < start_level)
 		return NULL;
@@ -230,9 +252,7 @@ static void apply_cmo_to_mappings(void (*cmo_fn)(unsigned long, unsigned long))
 	if (!gd->arch.tlb_addr)
 		return;
 
-	get_tcr(NULL, &va_bits);
-	if (va_bits < 39)
-		sl = 1;
+	sl = _start_level();
 
 	__cmo_on_leaves(cmo_fn, gd->arch.tlb_addr, sl, 0);
 }
@@ -244,7 +264,7 @@ static inline void apply_cmo_to_mappings(void *dummy) {}
 static u64 *create_table(void)
 {
 	u64 *new_table = (u64*)gd->arch.tlb_fillptr;
-	u64 pt_len = MAX_PTE_ENTRIES * sizeof(u64);
+	u64 pt_len = PAGE_SIZE;
 
 	/* Allocate MAX_PTE_ENTRIES pte entries */
 	gd->arch.tlb_fillptr += pt_len;
@@ -342,15 +362,12 @@ static void map_range(u64 virt, u64 phys, u64 size, int level,
 
 void mmu_map_region(phys_addr_t addr, u64 size, bool emergency)
 {
-	u64 va_bits;
 	int level = 0;
 	u64 attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) | PTE_BLOCK_INNER_SHARE;
 
 	attrs |= PTE_TYPE_BLOCK | PTE_BLOCK_AF;
 
-	get_tcr(NULL, &va_bits);
-	if (va_bits < 39)
-		level = 1;
+	level = _start_level();
 
 	if (emergency)
 		map_range(addr, addr, size, level,
@@ -368,12 +385,9 @@ void mmu_map_region(phys_addr_t addr, u64 size, bool emergency)
 static void add_map(struct mm_region *map)
 {
 	u64 attrs = map->attrs | PTE_TYPE_BLOCK | PTE_BLOCK_AF;
-	u64 va_bits;
 	int level = 0;
 
-	get_tcr(NULL, &va_bits);
-	if (va_bits < 39)
-		level = 1;
+	level = _start_level();
 
 	map_range(map->virt, map->phys, map->size, level,
 		  (u64 *)gd->arch.tlb_addr, attrs);
@@ -410,11 +424,8 @@ static void count_range(u64 virt, u64 size, int level, int *cntp)
 static int count_ranges(void)
 {
 	int i, count = 0, level = 0;
-	u64 va_bits;
 
-	get_tcr(NULL, &va_bits);
-	if (va_bits < 39)
-		level = 1;
+	level = _start_level();
 
 	for (i = 0; mem_map[i].size || mem_map[i].attrs; i++)
 		count_range(mem_map[i].virt, mem_map[i].size, level, &count);
@@ -472,8 +483,7 @@ static void __pagetable_walk(u64 addr, u64 tcr, int level, pte_walker_cb_t cb, v
 
 	if (!level) {
 		exit = false;
-		if (va_bits < 39)
-			level = 1;
+		level = _start_level();
 	}
 
 	state[level] = WALKER_STATE_START;
@@ -658,7 +668,7 @@ static void print_pte(u64 pte, int level)
 static bool pagetable_print_entry(u64 start_attrs, u64 end, int va_bits, int level, void *priv)
 {
 	u64 _addr = start_attrs & GENMASK_ULL(va_bits, PAGE_SHIFT);
-	int indent = va_bits < 39 ? level - 1 : level;
+	int indent = _start_level();
 
 	printf("%*s", indent * 2, "");
 	if (PTE_IS_TABLE(start_attrs, level))
@@ -682,14 +692,14 @@ void dump_pagetable(u64 ttbr, u64 tcr)
 	u64 va_bits = 64 - (tcr & (BIT(6) - 1));
 
 	printf("Walking pagetable at %p, va_bits: %lld. Using %d levels\n", (void *)ttbr,
-	       va_bits, va_bits < 39 ? 3 : 4);
+	       va_bits, 2);
 	walk_pagetable(ttbr, tcr, pagetable_print_entry, NULL);
 }
 
 /* Returns the estimated required size of all page tables */
 __weak u64 get_page_table_size(void)
 {
-	u64 one_pt = MAX_PTE_ENTRIES * sizeof(u64);
+	u64 one_pt = PAGE_SIZE;
 	u64 size;
 
 	/* Account for all page tables we would need to cover our memory map */

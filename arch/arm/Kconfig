@@ -12,6 +12,30 @@ config ARM64
 	select SYS_CACHE_SHIFT_6
 	imply SPL_SEPARATE_BSS
 
+choice
+	prompt "Page size"
+	depends on ARM64
+	default ARM64_4K_PAGES
+	help
+	  Page size (translation granule) configuration.
+
+config ARM64_4K_PAGES
+	bool "4KB"
+	help
+	  The system will use 4KB pages support.
+
+config ARM64_16K_PAGES
+	bool "16KB"
+	help
+	  The system will use 16KB pages support.
+
+config ARM64_64K_PAGES
+	bool "64KB"
+	help
+	  The system will use 64KB pages support.
+
+endchoice
+
 config ARM64_CRC32
 	bool "Enable support for CRC32 instruction"
 	depends on ARM64 && CC_IS_GCC
