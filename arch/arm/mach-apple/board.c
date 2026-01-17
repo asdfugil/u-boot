@@ -732,9 +732,9 @@ void build_mem_map(void)
 	/* Align RAM mapping to page boundaries */
 	base = gd->bd->bi_dram[0].start;
 	size = gd->bd->bi_dram[0].size;
-	size += (base - ALIGN_DOWN(base, SZ_4K));
-	base = ALIGN_DOWN(base, SZ_4K);
-	size = ALIGN(size, SZ_4K);
+	size += (base - ALIGN_DOWN(base, PAGE_SIZE));
+	base = ALIGN_DOWN(base, PAGE_SIZE);
+	size = ALIGN(size, PAGE_SIZE);
 
 	/* Update RAM mapping */
 	mem_map[i - 2].virt = base;
@@ -750,9 +750,9 @@ void build_mem_map(void)
 		return;
 
 	/* Align framebuffer mapping to page boundaries */
-	size += (base - ALIGN_DOWN(base, SZ_4K));
-	base = ALIGN_DOWN(base, SZ_4K);
-	size = ALIGN(size, SZ_4K);
+	size += (base - ALIGN_DOWN(base, PAGE_SIZE));
+	base = ALIGN_DOWN(base, PAGE_SIZE);
+	size = ALIGN(size, PAGE_SIZE);
 
 	/* Add framebuffer mapping */
 	mem_map[i - 1].virt = base;
@@ -770,7 +770,7 @@ void enable_caches(void)
 
 u64 get_page_table_size(void)
 {
-	return SZ_256K;
+	return SZ_512K;
 }
 
 static char *asahi_esp_devpart(void)
