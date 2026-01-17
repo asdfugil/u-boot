@@ -1015,6 +1015,20 @@ static int dwc2_udc_otg_of_to_plat(struct udevice *dev)
 	return 0;
 }
 
+static void dwc2_set_s5l8960x_params(struct dwc2_plat_otg_data *p)
+{
+	p->usb_gusbcfg = 0x1408;
+	p->rx_fifo_sz = 539;
+	p->np_tx_fifo_sz = 16;
+
+	unsigned fifo_count = 9;
+
+	p->tx_fifo_sz_array[0] = 64;
+
+	for(unsigned fifo = 1; fifo <= fifo_count; fifo++)
+		p->tx_fifo_sz_array[fifo] = 244;
+}
+
 static void dwc2_set_stm32mp1_hsotg_params(struct dwc2_plat_otg_data *p)
 {
 	p->activate_stm_id_vb_detection = true;
@@ -1174,6 +1188,8 @@ static const struct usb_gadget_generic_ops dwc2_gadget_ops = {
 
 static const struct udevice_id dwc2_udc_otg_ids[] = {
 	{ .compatible = "snps,dwc2" },
+	{ .compatible = "apple,dwc2",
+	  .data = (ulong)dwc2_set_s5l8960x_params },
 	{ .compatible = "brcm,bcm2835-usb" },
 	{ .compatible = "st,stm32mp15-hsotg",
 	  .data = (ulong)dwc2_set_stm32mp1_hsotg_params },
