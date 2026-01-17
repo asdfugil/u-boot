@@ -18,6 +18,125 @@
 
 DECLARE_GLOBAL_DATA_PTR;
 
+/* Apple A7 */
+
+static struct mm_region s5l8960x_mem_map[] = {
+	{
+		/* I/O */
+		.virt = 0x200000000,
+		.phys = 0x200000000,
+		.size = 4UL * SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* RAM */
+		.virt = 0x800000000,
+		.phys = 0x800000000,
+		.size = SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_INNER_SHARE
+	}, {
+		/* Framebuffer */
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL_NC) |
+			 PTE_BLOCK_INNER_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* List terminator */
+		0,
+	}
+};
+
+/* Apple A8/A8X/A9/A9X/A10/A10X/A11 */
+
+static struct mm_region t7000_mem_map[] = {
+	{
+		/* I/O */
+		.virt = 0x200000000,
+		.phys = 0x200000000,
+		.size = 4UL * SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* PCIE */
+		.virt = 0x600000000,
+		.phys = 0x600000000,
+		.size = 8UL * SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRE) |
+			 PTE_BLOCK_INNER_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* RAM */
+		.virt = 0x800000000,
+		.phys = 0x800000000,
+		.size = SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_INNER_SHARE
+	}, {
+		/* Framebuffer */
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL_NC) |
+			 PTE_BLOCK_INNER_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* List terminator */
+		0,
+	}
+};
+
+/* Apple T2 */
+
+static struct mm_region t8012_mem_map[] = {
+	{
+		/* I/O */
+		.virt = 0x200000000,
+		.phys = 0x200000000,
+		.size = 8UL * SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* PMGR registers */
+		.virt = 0x5fe800000,
+		.phys = 0x5fe800000,
+		.size = 0x10000,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* PUP Coprocessor */
+		.virt = 0x5ff000000,
+		.phys = 0x5ff000000,
+		.size = 0x480000,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRNE) |
+			 PTE_BLOCK_NON_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* PCIE */
+		.virt = 0x600000000,
+		.phys = 0x600000000,
+		.size = 8UL * SZ_1G,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_DEVICE_NGNRE) |
+			 PTE_BLOCK_INNER_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* RAM */
+		.virt = 0x800000000,
+		.phys = 0x800000000,
+		.size = SZ_512M,
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL) |
+			 PTE_BLOCK_INNER_SHARE
+	}, {
+		/* Framebuffer */
+		.attrs = PTE_BLOCK_MEMTYPE(MT_NORMAL_NC) |
+			 PTE_BLOCK_INNER_SHARE |
+			 PTE_BLOCK_PXN | PTE_BLOCK_UXN
+	}, {
+		/* List terminator */
+		0,
+	}
+};
+
 /* Apple M1/M2 */
 
 static struct mm_region t8103_mem_map[] = {
@@ -709,7 +828,20 @@ void build_mem_map(void)
 	fdt_size_t size;
 	int i;
 
-	if (of_machine_is_compatible("apple,t8103") ||
+	if (of_machine_is_compatible("apple,s5l8960x"))
+		mem_map = s5l8960x_mem_map;
+	else if (of_machine_is_compatible("apple,t7000") ||
+		 of_machine_is_compatible("apple,t7001") ||
+		 of_machine_is_compatible("apple,s8000") ||
+		 of_machine_is_compatible("apple,s8001") ||
+		 of_machine_is_compatible("apple,s8003") ||
+		 of_machine_is_compatible("apple,t8010") ||
+		 of_machine_is_compatible("apple,t8011") ||
+		 of_machine_is_compatible("apple,t8015"))
+		mem_map = t7000_mem_map;
+	else if (of_machine_is_compatible("apple,t8012"))
+		mem_map = t8012_mem_map;
+	else if (of_machine_is_compatible("apple,t8103") ||
 	    of_machine_is_compatible("apple,t8112"))
 		mem_map = t8103_mem_map;
 	else if (of_machine_is_compatible("apple,t6000") ||
